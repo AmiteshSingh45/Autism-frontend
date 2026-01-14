@@ -10,33 +10,54 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Invalid input. Please provide all 10 answers and personal information.' }, { status: 400 });
     }
 
-    // AQ-10 Scoring Logic
-    // Score 1 point for "Yes" on questions 1, 7, 10.
-    // The question indices are 0, 6, 9
-    const score_for_yes = [0, 6, 9];
-    
-    // Score 1 point for "No" on questions 2, 3, 4, 5, 6, 8, 9.
-    // The question indices are 1, 2, 3, 4, 5, 7, 8
-    const score_for_no = [1, 2, 3, 4, 5, 7, 8];
+    // Convert answers to features array
+    const features = [
+      answers[0] === 'Yes' ? 1 : 0,
+      answers[1] === 'Yes' ? 1 : 0,
+      answers[2] === 'Yes' ? 1 : 0,
+      answers[3] === 'Yes' ? 1 : 0,
+      answers[4] === 'Yes' ? 1 : 0,
+      answers[5] === 'Yes' ? 1 : 0,
+      answers[6] === 'Yes' ? 1 : 0,
+      answers[7] === 'Yes' ? 1 : 0,
+      answers[8] === 'Yes' ? 1 : 0,
+      answers[9] === 'Yes' ? 1 : 0,
+      0, // age, default
+      personalInfo.gender ? 0 : 1, // 0 male, 1 female
+      0, // ethnicity, default
+      personalInfo.jaundice ? 1 : 0,
+      personalInfo.familyAutism ? 1 : 0,
+      0, // country, default
+      personalInfo.usedAppBefore ? 1 : 0,
+      0, // result, default
+      0 // relation, default
+    ];
 
-    let score = 0;
+    // Call external ML model API
+    const modelApiUrl = process.env.NEXT_PUBLIC_MODEL_API;
+    if (!modelApiUrl) {
+      return NextResponse.json({ message: 'Model API not configured.' }, { status: 500 });
+    }
 
-    answers.forEach((answer, index) => {
-      if (answer === 'Yes' && score_for_yes.includes(index)) {
-        score++;
-      }
-      if (answer === 'No' && score_for_no.includes(index)) {
-        score++;
-      }
+    const response = await fetch(`${modelApiUrl}/predict`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ features }),
     });
 
-    // Return the score and a simple analysis
+    if (!response.ok) {
+      throw new Error(`Model API responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Return the prediction from the ML model
     return NextResponse.json({
-      score,
+      prediction: data.prediction || data.result || "Analysis completed",
+      score: data.score || null,
       personalInfo,
-      analysis: score >= 5
-        ? "Indicates a high number of autistic traits."
-        : "Indicates a low number of autistic traits.",
     });
 
   } catch (error) {

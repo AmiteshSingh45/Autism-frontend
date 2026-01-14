@@ -56,7 +56,7 @@ export default function Home() {
       });
       const data = await res.json();
       if (res.ok) {
-        setPrediction(data.analysis);
+        setPrediction(data.prediction);
       } else {
         alert(data.message || "Error generating analysis.");
       }
